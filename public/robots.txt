@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# Add the canonical public domain before publishing a sitemap URL.

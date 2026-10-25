@@ -1,41 +1,26 @@
-# Ali Yasser Ali — Cybersecurity Portfolio
+# Ali Yasser | Penetration Testing Portfolio
 
-This is a static React/Vite portfolio for Ali Yasser Ali. It uses a data-driven profile, a lightweight SVG network field, responsive CSS, and accessible archive interactions.
+Source bundle for Ali Yasser’s personal penetration-testing portfolio. The site highlights his web/API, network, Active Directory, and Android testing experience, responsible bug-bounty research, selected projects, credentials, and five technical field notes.
 
-## Local development
+## Run locally
+
+Requirements: Node.js LTS and pnpm.
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev:static
 ```
 
-Open `http://localhost:3000`.
-
-For a production build:
+For a production static build:
 
 ```bash
-pnpm build
-pnpm preview
+pnpm build:static
 ```
 
-The production output is written to `dist/`.
+The generated site is written to `dist/public`.
 
-## Editing the content
+## GitHub note
 
-The editable source of truth is `src/data/profile.ts`. Update profile links, contact email, case studies, achievements, certifications, and Medium articles there. Add the actual CV as `public/cv.pdf`; the existing download action intentionally displays the remaining asset requirement until that file is supplied.
+This archive is prepared for uploading as a source repository. It is not preconfigured with a GitHub Pages workflow. If you deploy from a repository subpath (for example `username.github.io/repository`), configure Vite’s `base` path and the Pages build workflow for that repository.
 
-The contact form is intentionally transparent. When `profile.contactEmail` is empty it reports that configuration is missing. After adding a verified email address in the data file, the form prepares a `mailto:` message and does not claim delivery through a backend.
-
-## Static deployment
-
-Deploy the repository to Vercel, Netlify, GitHub Pages, or another static host with the following build settings:
-
-- Install command: `pnpm install --frozen-lockfile`
-- Build command: `pnpm build`
-- Output directory: `dist`
-
-Set the deployed site’s canonical URL in the SEO metadata and `public/sitemap.xml` before submitting it to search engines. The project includes `public/manus-routes.json`, `robots.txt`, a favicon, and a static sitemap placeholder.
-
-## Content and disclosure note
-
-The public archive deliberately uses CV-supported details and sanitized summaries from the supplied Medium write-ups. It does not publish private client report contents, credentials, secrets, unapproved proof-of-concept material, bounty totals, or invented metrics.
+The downloadable CV PDF is included. Review the personal contact details in it before making the repository public. No `.env` files or API credentials are included; keep secrets out of GitHub.

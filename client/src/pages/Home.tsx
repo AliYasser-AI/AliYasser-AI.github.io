@@ -142,13 +142,13 @@ export default function Home() {
           const count = Math.min(118, Math.max(30, Math.round((width * height) / 12200)));
           for (let i = 0; i < count; i += 1) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 0.09 + Math.random() * 0.2;
+            const speed = 0.14 + Math.random() * 0.3;
             nodes.push({
               x: Math.random() * width,
               y: Math.random() * height,
               vx: Math.cos(angle) * speed,
               vy: Math.sin(angle) * speed,
-              radius: 1.25 + Math.random() * 2.1,
+              radius: 1.5 + Math.random() * 2.4,
               phase: Math.random() * Math.PI * 2,
             });
           }
@@ -176,22 +176,22 @@ export default function Home() {
             const dx = node.x - pointer.x;
             const dy = node.y - pointer.y;
             const distance = Math.hypot(dx, dy);
-            if (distance > 0 && distance < 145) {
-              const force = ((145 - distance) / 145) * 0.42 * delta;
+            if (distance > 0 && distance < 195) {
+              const force = ((195 - distance) / 195) * 0.88 * delta;
               node.x += (dx / distance) * force;
               node.y += (dy / distance) * force;
             }
           }
         });
 
-        const linkDistance = Math.min(205, Math.max(128, width * 0.16));
+        const linkDistance = Math.min(235, Math.max(135, width * 0.18));
         for (let i = 0; i < nodes.length; i += 1) {
           const first = nodes[i];
           for (let j = i + 1; j < nodes.length; j += 1) {
             const second = nodes[j];
             const distance = Math.hypot(first.x - second.x, first.y - second.y);
             if (distance < linkDistance) {
-              const alpha = (1 - distance / linkDistance) * 0.34;
+              const alpha = (1 - distance / linkDistance) * 0.43;
               context.beginPath();
               context.moveTo(first.x, first.y);
               context.lineTo(second.x, second.y);
@@ -226,7 +226,7 @@ export default function Home() {
               }
             });
             if (nearest) {
-              const progress = (now * 0.00018 + index * 0.173) % 1;
+              const progress = (now * 0.00027 + index * 0.173) % 1;
               const x = node.x + (nearest.x - node.x) * progress;
               const y = node.y + (nearest.y - node.y) * progress;
               context.beginPath();
@@ -238,12 +238,21 @@ export default function Home() {
               context.shadowBlur = 0;
             }
           }
+
+          if (index % 18 === 0) {
+            const ringPhase = (now * 0.00032 + node.phase / (Math.PI * 2)) % 1;
+            context.beginPath();
+            context.arc(node.x, node.y, 10 + ringPhase * 66, 0, Math.PI * 2);
+            context.strokeStyle = `rgba(133,216,207,${(1 - ringPhase) * 0.25})`;
+            context.lineWidth = 1;
+            context.stroke();
+          }
         });
 
         const radarX = width * 0.52;
         const radarY = height * 0.48;
         const radarRadius = Math.max(180, Math.min(width, height) * 0.4);
-        const radarAngle = now * 0.00019;
+        const radarAngle = now * 0.00032;
         context.beginPath();
         context.arc(radarX, radarY, radarRadius, radarAngle - 0.23, radarAngle + 0.23);
         context.strokeStyle = "rgba(133,216,207,.16)";
@@ -256,18 +265,18 @@ export default function Home() {
         context.lineWidth = 1;
         context.stroke();
 
-        const scanY = (now * 0.035) % (height + 120) - 60;
+        const scanY = (now * 0.06) % (height + 120) - 60;
         const scanGradient = context.createLinearGradient(0, scanY, width, scanY);
         scanGradient.addColorStop(0, "rgba(133,216,207,0)");
-        scanGradient.addColorStop(0.48, "rgba(133,216,207,.16)");
-        scanGradient.addColorStop(0.52, "rgba(197,239,114,.2)");
+        scanGradient.addColorStop(0.48, "rgba(133,216,207,.24)");
+        scanGradient.addColorStop(0.52, "rgba(197,239,114,.31)");
         scanGradient.addColorStop(1, "rgba(133,216,207,0)");
         context.fillStyle = scanGradient;
-        context.fillRect(0, scanY, width, 1.5);
+        context.fillRect(0, scanY, width, 2.2);
 
         if (pointer.active) {
-          const angle = now * 0.00075;
-          const radius = 30 + Math.sin(now * 0.0018) * 5;
+          const angle = now * 0.0014;
+          const radius = 38 + Math.sin(now * 0.0025) * 9;
           context.beginPath();
           context.arc(pointer.x, pointer.y, radius, 0, Math.PI * 2);
           context.strokeStyle = "rgba(197,239,114,.22)";
@@ -275,7 +284,7 @@ export default function Home() {
           context.stroke();
           context.beginPath();
           context.moveTo(pointer.x, pointer.y);
-          context.lineTo(pointer.x + Math.cos(angle) * 112, pointer.y + Math.sin(angle) * 112);
+          context.lineTo(pointer.x + Math.cos(angle) * 164, pointer.y + Math.sin(angle) * 164);
           context.strokeStyle = "rgba(197,239,114,.25)";
           context.stroke();
         }
@@ -288,7 +297,7 @@ export default function Home() {
         pointer = { x: event.clientX, y: event.clientY, active: true };
         if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
           const target = event.target instanceof Element
-            ? event.target.closest<HTMLElement>(".finding-card, .project-card, .skill-card, .blog-card, .hiring-card, .signal-lens-card")
+            ? event.target.closest<HTMLElement>(".hero-visual, .finding-card, .project-card, .skill-card, .blog-card, .hiring-card, .signal-lens-card")
             : null;
           const previous = document.querySelector<HTMLElement>("[data-tilt-active='true']");
           if (previous && previous !== target) {
@@ -298,9 +307,10 @@ export default function Home() {
           }
           if (target) {
             const rect = target.getBoundingClientRect();
+            const tiltPower = target.classList.contains("hero-visual") ? 11 : 8;
             target.dataset.tiltActive = "true";
-            target.style.setProperty("--tilt-x", `${((0.5 - (event.clientY - rect.top) / rect.height) * 5).toFixed(2)}deg`);
-            target.style.setProperty("--tilt-y", `${(((event.clientX - rect.left) / rect.width - 0.5) * 5).toFixed(2)}deg`);
+            target.style.setProperty("--tilt-x", `${((0.5 - (event.clientY - rect.top) / rect.height) * tiltPower).toFixed(2)}deg`);
+            target.style.setProperty("--tilt-y", `${(((event.clientX - rect.left) / rect.width - 0.5) * tiltPower).toFixed(2)}deg`);
           }
         }
       };

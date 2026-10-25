@@ -867,3 +867,50 @@ body::after { opacity: .3; animation-duration: 28s; }
   }
   .about-section, .experience-section, .skills-section, .community-section { background-color: rgba(9,12,14,.72); }
 }
+
+
+/* Higher-energy, premium cyber-thriller motion pass */
+body::before {
+  background-image:
+    radial-gradient(ellipse at 17% 25%, rgba(78,185,176,.42), transparent 34%),
+    radial-gradient(ellipse at 78% 49%, rgba(162,212,91,.29), transparent 36%),
+    radial-gradient(ellipse at 50% 92%, rgba(59,122,130,.33), transparent 39%);
+  animation-duration: 11s;
+}
+body::after { opacity: .36; animation-duration: 17s; }
+.hero-section::before { opacity: .46; background-size: 46px 46px; animation-duration: 11s; }
+.hero-section::after { animation-duration: 5.5s; opacity: .3; }
+.visual-frame::after { animation-duration: 3.6s; }
+.visual-frame img { animation-duration: 11s; }
+.visual-frame { animation-duration: 4.6s; }
+.visual-caption { animation-duration: 3.2s; }
+.hero-orbit { animation-duration: 12s; }
+.orbit-one { animation-duration: 9.5s; }
+.orbit-two { animation-duration: 7.5s; }
+.motion-ticker-track { animation-duration: 18s; }
+.skill-heading-mark { animation-duration: 4.8s; }
+.hero-visual { transform-style: preserve-3d; transition: transform .42s cubic-bezier(.2,.7,.25,1); }
+@media (hover: hover) and (pointer: fine) {
+  .hero-visual[data-tilt-active="true"] {
+    transform: perspective(1050px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)) translateZ(8px) scale(1.012);
+  }
+  .visual-frame { transition: box-shadow .45s ease, border-color .45s ease; }
+  .hero-visual[data-tilt-active="true"] .visual-frame {
+    border-color: rgba(133,216,207,.44);
+    box-shadow: 0 36px 110px rgba(0,0,0,.43), 0 0 64px rgba(82,182,166,.16);
+  }
+}
+.sound-toggle[aria-pressed="true"] {
+  background: linear-gradient(115deg, rgba(197,239,114,.12), rgba(133,216,207,.12));
+  box-shadow: 0 0 25px rgba(197,239,114,.14), inset 0 0 12px rgba(133,216,207,.07);
+}
+@media (max-width: 760px) {
+  body::before { animation-duration: 14s; }
+  .hero-section::after { animation-duration: 7s; }
+  .visual-frame img { animation-duration: 14s; }
+  .motion-ticker-track { animation-duration: 22s; }
+  .hero-visual[data-tilt-active="true"] { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-visual, .visual-frame { transition: none !important; }
+}

@@ -15,32 +15,57 @@ export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const audio = new Audio("/audio/ambient-security-loop.mp3");
+    const audio = new Audio("/audio/cyber-pulse-score.mp3");
     audio.loop = true;
-    audio.volume = 0.16;
+    audio.volume = 0;
     audio.preload = "none";
     audioRef.current = audio;
     return () => {
+      if (fadeFrameRef.current !== null) cancelAnimationFrame(fadeFrameRef.current);
       audio.pause();
       audio.currentTime = 0;
       audioRef.current = null;
     };
   }, []);
 
+  const fadeAudio = (audio: HTMLAudioElement, targetVolume: number, pauseAfterFade = false) => {
+    if (fadeFrameRef.current !== null) cancelAnimationFrame(fadeFrameRef.current);
+    const startVolume = audio.volume;
+    const startTime = performance.now();
+    const duration = 850;
+    const fade = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = progress * progress * (3 - 2 * progress);
+      audio.volume = startVolume + (targetVolume - startVolume) * eased;
+      if (progress < 1) {
+        fadeFrameRef.current = requestAnimationFrame(fade);
+      } else {
+        fadeFrameRef.current = null;
+        if (pauseAfterFade) audio.pause();
+      }
+    };
+    fadeFrameRef.current = requestAnimationFrame(fade);
+  };
+
   const toggleSound = async () => {
     const audio = audioRef.current;
     if (!audio) return;
     if (soundOn) {
-      audio.pause();
       setSoundOn(false);
+      fadeAudio(audio, 0, true);
       return;
     }
     try {
+      audio.volume = 0;
       await audio.play();
       setSoundOn(true);
+      fadeAudio(audio, 0.26);
     } catch {
+      audio.pause();
+      audio.volume = 0;
       setSoundOn(false);
     }
   };
@@ -65,8 +90,8 @@ export default function SiteHeader() {
           className="sound-toggle"
           type="button"
           aria-pressed={soundOn}
-          aria-label={soundOn ? "Turn ambient sound off" : "Turn ambient sound on"}
-          title={soundOn ? "Ambient sound on — click to mute" : "Ambient sound off — click to enable"}
+          aria-label={soundOn ? "Turn cinematic cyber soundtrack off" : "Turn cinematic cyber soundtrack on"}
+          title={soundOn ? "Cinematic cyber soundtrack on — click to mute" : "Cinematic cyber soundtrack off — click to enable"}
           onClick={toggleSound}
         >
           {soundOn ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}

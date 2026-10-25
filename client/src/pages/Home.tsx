@@ -49,6 +49,11 @@ export default function Home() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            const siblings = Array.from(
+              entry.target.parentElement?.querySelectorAll<HTMLElement>(":scope > [data-reveal]") ?? [],
+            );
+            const order = siblings.indexOf(entry.target as HTMLElement);
+            (entry.target as HTMLElement).style.setProperty("--reveal-delay", `${Math.max(0, order) * 90}ms`);
             entry.target.classList.add("is-visible");
             observer.unobserve(entry.target);
           }
@@ -60,8 +65,318 @@ export default function Home() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotion = motionPreference.matches;
+    const progressBar = document.querySelector<HTMLElement>(".scroll-progress span");
+    const counters = Array.from(document.querySelectorAll<HTMLElement>("[data-count-up]"));
+    const counterFrames: number[] = [];
+    const setCounter = (element: HTMLElement, value: number) => {
+      const textNode = Array.from(element.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.textContent = String(value);
+    };
+
+    let counterObserver: IntersectionObserver | undefined;
+    if (reducedMotion || !("IntersectionObserver" in window)) {
+      counters.forEach((element) => setCounter(element, Number(element.dataset.countUp)));
+    } else {
+      counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const element = entry.target as HTMLElement;
+          const target = Number(element.dataset.countUp);
+          let startedAt = 0;
+          const animateNumber = (now: number) => {
+            if (!startedAt) startedAt = now;
+            const progress = Math.min(1, (now - startedAt) / 1300);
+            const eased = 1 - (1 - progress) ** 4;
+            setCounter(element, Math.round(target * eased));
+            if (progress < 1) counterFrames.push(requestAnimationFrame(animateNumber));
+          };
+          counterFrames.push(requestAnimationFrame(animateNumber));
+          counterObserver?.unobserve(element);
+        });
+      }, { threshold: 0.65 });
+      counters.forEach((element) => counterObserver?.observe(element));
+    }
+
+    let scrollFrame = 0;
+    const updateProgress = () => {
+      if (scrollFrame) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        const distance = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = distance > 0 ? window.scrollY / distance : 0;
+        if (progressBar) progressBar.style.transform = `scaleX(${Math.max(0, Math.min(1, progress))})`;
+      });
+    };
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "ambient-threat-map";
+    canvas.setAttribute("aria-hidden", "true");
+    canvas.setAttribute("role", "presentation");
+    let animationFrame = 0;
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let lastFrame = 0;
+    let pointer = { x: 0, y: 0, active: false };
+    const nodes: Array<{ x: number; y: number; vx: number; vy: number; radius: number; phase: number }> = [];
+    const context = canvas.getContext("2d", { alpha: true });
+
+    if (context) {
+      if (!reducedMotion) document.body.appendChild(canvas);
+
+      const resizeCanvas = () => {
+        const oldWidth = width;
+        const oldHeight = height;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        if (nodes.length === 0) {
+          const count = Math.min(118, Math.max(30, Math.round((width * height) / 12200)));
+          for (let i = 0; i < count; i += 1) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.09 + Math.random() * 0.2;
+            nodes.push({
+              x: Math.random() * width,
+              y: Math.random() * height,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              radius: 1.25 + Math.random() * 2.1,
+              phase: Math.random() * Math.PI * 2,
+            });
+          }
+        } else if (oldWidth && oldHeight) {
+          nodes.forEach((node) => {
+            node.x = (node.x / oldWidth) * width;
+            node.y = (node.y / oldHeight) * height;
+          });
+        }
+      };
+
+      const drawNetwork = (now: number) => {
+        const delta = lastFrame ? Math.min(2, (now - lastFrame) / 16.67) : 1;
+        lastFrame = now;
+        context.clearRect(0, 0, width, height);
+
+        nodes.forEach((node) => {
+          node.x += node.vx * delta;
+          node.y += node.vy * delta;
+          if (node.x < -18) node.x = width + 18;
+          if (node.x > width + 18) node.x = -18;
+          if (node.y < -18) node.y = height + 18;
+          if (node.y > height + 18) node.y = -18;
+          if (pointer.active) {
+            const dx = node.x - pointer.x;
+            const dy = node.y - pointer.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance > 0 && distance < 145) {
+              const force = ((145 - distance) / 145) * 0.42 * delta;
+              node.x += (dx / distance) * force;
+              node.y += (dy / distance) * force;
+            }
+          }
+        });
+
+        const linkDistance = Math.min(205, Math.max(128, width * 0.16));
+        for (let i = 0; i < nodes.length; i += 1) {
+          const first = nodes[i];
+          for (let j = i + 1; j < nodes.length; j += 1) {
+            const second = nodes[j];
+            const distance = Math.hypot(first.x - second.x, first.y - second.y);
+            if (distance < linkDistance) {
+              const alpha = (1 - distance / linkDistance) * 0.34;
+              context.beginPath();
+              context.moveTo(first.x, first.y);
+              context.lineTo(second.x, second.y);
+              context.strokeStyle = `rgba(133, 216, 207, ${alpha})`;
+              context.lineWidth = 0.9;
+              context.stroke();
+            }
+          }
+        }
+
+        nodes.forEach((node, index) => {
+          const breathe = 0.65 + (Math.sin(now * 0.0014 + node.phase) + 1) * 0.22;
+          context.beginPath();
+          context.arc(node.x, node.y, node.radius * breathe, 0, Math.PI * 2);
+          context.fillStyle = index % 7 === 0
+            ? `rgba(197, 239, 114, ${0.62 * breathe})`
+            : `rgba(133, 216, 207, ${0.44 * breathe})`;
+          context.shadowColor = index % 7 === 0 ? "rgba(197,239,114,.7)" : "rgba(133,216,207,.55)";
+          context.shadowBlur = index % 7 === 0 ? 9 : 6;
+          context.fill();
+          context.shadowBlur = 0;
+
+          if (index % 8 === 0) {
+            let nearest: (typeof nodes)[number] | undefined;
+            let nearestDistance = linkDistance;
+            nodes.forEach((candidate, candidateIndex) => {
+              if (candidateIndex === index) return;
+              const distance = Math.hypot(candidate.x - node.x, candidate.y - node.y);
+              if (distance < nearestDistance) {
+                nearest = candidate;
+                nearestDistance = distance;
+              }
+            });
+            if (nearest) {
+              const progress = (now * 0.00018 + index * 0.173) % 1;
+              const x = node.x + (nearest.x - node.x) * progress;
+              const y = node.y + (nearest.y - node.y) * progress;
+              context.beginPath();
+              context.arc(x, y, 1.7, 0, Math.PI * 2);
+              context.fillStyle = "rgba(229, 255, 168, .95)";
+              context.shadowColor = "rgba(197,239,114,.95)";
+              context.shadowBlur = 10;
+              context.fill();
+              context.shadowBlur = 0;
+            }
+          }
+        });
+
+        const radarX = width * 0.52;
+        const radarY = height * 0.48;
+        const radarRadius = Math.max(180, Math.min(width, height) * 0.4);
+        const radarAngle = now * 0.00019;
+        context.beginPath();
+        context.arc(radarX, radarY, radarRadius, radarAngle - 0.23, radarAngle + 0.23);
+        context.strokeStyle = "rgba(133,216,207,.16)";
+        context.lineWidth = 1.1;
+        context.stroke();
+        context.beginPath();
+        context.moveTo(radarX, radarY);
+        context.lineTo(radarX + Math.cos(radarAngle) * radarRadius, radarY + Math.sin(radarAngle) * radarRadius);
+        context.strokeStyle = "rgba(197,239,114,.24)";
+        context.lineWidth = 1;
+        context.stroke();
+
+        const scanY = (now * 0.035) % (height + 120) - 60;
+        const scanGradient = context.createLinearGradient(0, scanY, width, scanY);
+        scanGradient.addColorStop(0, "rgba(133,216,207,0)");
+        scanGradient.addColorStop(0.48, "rgba(133,216,207,.16)");
+        scanGradient.addColorStop(0.52, "rgba(197,239,114,.2)");
+        scanGradient.addColorStop(1, "rgba(133,216,207,0)");
+        context.fillStyle = scanGradient;
+        context.fillRect(0, scanY, width, 1.5);
+
+        if (pointer.active) {
+          const angle = now * 0.00075;
+          const radius = 30 + Math.sin(now * 0.0018) * 5;
+          context.beginPath();
+          context.arc(pointer.x, pointer.y, radius, 0, Math.PI * 2);
+          context.strokeStyle = "rgba(197,239,114,.22)";
+          context.lineWidth = 0.8;
+          context.stroke();
+          context.beginPath();
+          context.moveTo(pointer.x, pointer.y);
+          context.lineTo(pointer.x + Math.cos(angle) * 112, pointer.y + Math.sin(angle) * 112);
+          context.strokeStyle = "rgba(197,239,114,.25)";
+          context.stroke();
+        }
+
+        animationFrame = requestAnimationFrame(drawNetwork);
+      };
+
+      const onPointerMove = (event: PointerEvent) => {
+        if (motionPreference.matches || event.pointerType === "touch") return;
+        pointer = { x: event.clientX, y: event.clientY, active: true };
+        if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+          const target = event.target instanceof Element
+            ? event.target.closest<HTMLElement>(".finding-card, .project-card, .skill-card, .blog-card, .hiring-card, .signal-lens-card")
+            : null;
+          const previous = document.querySelector<HTMLElement>("[data-tilt-active='true']");
+          if (previous && previous !== target) {
+            previous.removeAttribute("data-tilt-active");
+            previous.style.removeProperty("--tilt-x");
+            previous.style.removeProperty("--tilt-y");
+          }
+          if (target) {
+            const rect = target.getBoundingClientRect();
+            target.dataset.tiltActive = "true";
+            target.style.setProperty("--tilt-x", `${((0.5 - (event.clientY - rect.top) / rect.height) * 5).toFixed(2)}deg`);
+            target.style.setProperty("--tilt-y", `${(((event.clientX - rect.left) / rect.width - 0.5) * 5).toFixed(2)}deg`);
+          }
+        }
+      };
+      const clearPointer = () => {
+        pointer.active = false;
+        const previous = document.querySelector<HTMLElement>("[data-tilt-active='true']");
+        previous?.removeAttribute("data-tilt-active");
+        previous?.style.removeProperty("--tilt-x");
+        previous?.style.removeProperty("--tilt-y");
+      };
+      const onVisibilityChange = () => {
+        if (document.hidden) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+        } else if (!animationFrame && !motionPreference.matches) {
+          animationFrame = requestAnimationFrame(drawNetwork);
+        }
+      };
+      const onMotionPreferenceChange = () => {
+        if (motionPreference.matches) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+          clearPointer();
+          canvas.remove();
+          counterObserver?.disconnect();
+          counterFrames.forEach(cancelAnimationFrame);
+          counterFrames.length = 0;
+          counters.forEach((element) => setCounter(element, Number(element.dataset.countUp)));
+        } else {
+          if (!canvas.isConnected) document.body.appendChild(canvas);
+          resizeCanvas();
+          if (!document.hidden && !animationFrame) animationFrame = requestAnimationFrame(drawNetwork);
+        }
+      };
+
+      if (!reducedMotion) {
+        resizeCanvas();
+        animationFrame = requestAnimationFrame(drawNetwork);
+      }
+      window.addEventListener("resize", resizeCanvas, { passive: true });
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      window.addEventListener("blur", clearPointer);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      motionPreference.addEventListener("change", onMotionPreferenceChange);
+
+      const cleanup = () => {
+        cancelAnimationFrame(animationFrame);
+        window.removeEventListener("resize", resizeCanvas);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("blur", clearPointer);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        motionPreference.removeEventListener("change", onMotionPreferenceChange);
+        canvas.remove();
+      };
+
+      const cleanupReducedMotion = () => {
+        counterObserver?.disconnect();
+        counterFrames.forEach(cancelAnimationFrame);
+        window.removeEventListener("scroll", updateProgress);
+        cancelAnimationFrame(scrollFrame);
+        cleanup();
+      };
+      return cleanupReducedMotion;
+    }
+
+    return () => {
+      counterObserver?.disconnect();
+      counterFrames.forEach(cancelAnimationFrame);
+      window.removeEventListener("scroll", updateProgress);
+      cancelAnimationFrame(scrollFrame);
+    };
+  }, []);
+
   return (
     <div className="portfolio" id="top">
+      <div className="scroll-progress" aria-hidden="true"><span /></div>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <SiteHeader />
 
@@ -108,12 +423,23 @@ export default function Home() {
         <section className="metrics-strip" aria-label="Career highlights">
           <div className="shell metrics-inner">
             <div className="metric-intro"><span className="eyebrow-dot" /> FIELD NOTES / AT A GLANCE</div>
-            <div className="metric"><strong>25<span>+</span></strong><small>validated vulnerabilities</small></div>
-            <div className="metric"><strong>5<span>+</span></strong><small>financial systems assessed</small></div>
-            <div className="metric"><strong>100<span>+</span></strong><small>students reached through workshops</small></div>
+            <div className="metric"><strong data-count-up="25">25<span>+</span></strong><small>validated vulnerabilities</small></div>
+            <div className="metric"><strong data-count-up="5">5<span>+</span></strong><small>financial systems assessed</small></div>
+            <div className="metric"><strong data-count-up="100">100<span>+</span></strong><small>students reached through workshops</small></div>
             <div className="metric-location"><span>BASED IN</span><b>CAIRO, EGYPT</b></div>
           </div>
         </section>
+
+        <div className="motion-ticker" aria-label="Testing coverage and working principles">
+          <p className="sr-only">Authorized scope: web and API, network security, Active Directory, Android testing, evidence-led reporting, and remediation-first recommendations.</p>
+          <div className="motion-ticker-track" aria-hidden="true">
+            {[0, 1].map((copy) => (
+              <div className="motion-ticker-set" key={copy}>
+                <span>AUTHORIZED SCOPE</span><span>WEB &amp; API</span><span>NETWORK SECURITY</span><span>ACTIVE DIRECTORY</span><span>ANDROID TESTING</span><span>EVIDENCE-LED REPORTS</span><span>REMEDIATION FIRST</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <section className="section hiring-section" id="hiring">
           <div className="shell">

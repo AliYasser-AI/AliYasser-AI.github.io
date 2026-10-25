@@ -1,5 +1,5 @@
-import { Download, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Download, Menu, Volume2, VolumeX, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const navItems = [
   { href: "#about", label: "About" },
@@ -13,6 +13,37 @@ const navItems = [
 
 export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/ambient-security-loop.mp3");
+    audio.loop = true;
+    audio.volume = 0.16;
+    audio.preload = "none";
+    audioRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audioRef.current = null;
+    };
+  }, []);
+
+  const toggleSound = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (soundOn) {
+      audio.pause();
+      setSoundOn(false);
+      return;
+    }
+    try {
+      await audio.play();
+      setSoundOn(true);
+    } catch {
+      setSoundOn(false);
+    }
+  };
 
   return (
     <header className="site-header">
@@ -29,6 +60,19 @@ export default function SiteHeader() {
                     <small>PENTESTING · RESEARCH · REPORTING</small>
           </span>
         </a>
+
+        <button
+          className="sound-toggle"
+          type="button"
+          aria-pressed={soundOn}
+          aria-label={soundOn ? "Turn ambient sound off" : "Turn ambient sound on"}
+          title={soundOn ? "Ambient sound on — click to mute" : "Ambient sound off — click to enable"}
+          onClick={toggleSound}
+        >
+          {soundOn ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}
+          <span>{soundOn ? "SOUND ON" : "SOUND OFF"}</span>
+          <i className="sound-wave" aria-hidden="true"><b /><b /><b /></i>
+        </button>
 
         <button
           className="mobile-menu-toggle"
